@@ -99,22 +99,38 @@ module TestCenter
             end
             @parallelizer.setup_simulators(@scan_options[:devices] || Array(@scan_options[:device]), batch_deploymentversions)
             @parallelizer.setup_pipes_for_fork
+            pids = []
+            batch_pids = {}
             @test_collector.test_batches.each_with_index do |test_batch, current_batch_index|
-              fork do
-                @parallelizer.connect_subprocess_endpoint(current_batch_index)
-                begin
-                  @parallelizer.setup_scan_options_for_testrun(@scan_options, current_batch_index)
-                  # add output_directory to map of test-target: [ output_directories ]
-                  tests_passed = yield(test_batch, current_batch_index)
-                ensure
-                  @parallelizer.send_subprocess_result(current_batch_index, tests_passed)
-                end
-                # processes to disconnect from the Simulator subsystems
-                FastlaneCore::UI.message("batched scan #{current_batch_index} finishing")
+              @parallelizer.setup_scan_options_for_testrun(@scan_options, current_batch_index)
+              output_directory = testrun_output_directory(@output_directory, test_batch, current_batch_index)
+              reset_for_new_testable(output_directory)
+              FastlaneCore::UI.header("Starting test run on batch '#{current_batch_index}'")
+              @interstitial.batch = current_batch_index
+              @interstitial.output_directory = output_directory
+              @interstitial.before_all
+              config = FastlaneCore::Configuration.create(
+                Fastlane::Actions::ScanAction.available_options,
+                @scan_options.merge(
+                  only_testing: test_batch,
+                  output_directory: output_directory
+                )
+              )
+              Scan.config = config
+              test_command_generator = Scan::TestCommandGenerator.new
+              command = test_command_generator.generate
+              puts command.join(' ')
+              pids << spawn(command.join(' '))
+              batch_pids[pids.last] = current_batch_index
+            end
+            while pids.size > 0
+              finished_pid = Process.wait
+              test_pid = pids.find { |pid| finished_pid == pid }
+              if test_pid
+                tests_passed &&= ($?.exitstatus == 0)
+                pids.delete(test_pid)
               end
             end
-            @parallelizer.wait_for_subprocesses
-            tests_passed = @parallelizer.handle_subprocesses_results && tests_passed
             @parallelizer.cleanup_simulators
             @test_collector.testables.each do |testable|
               # ReportCollator with a testable-batch glob pattern
