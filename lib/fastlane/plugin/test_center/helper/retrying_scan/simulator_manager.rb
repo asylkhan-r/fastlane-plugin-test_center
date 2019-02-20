@@ -142,6 +142,19 @@ module TestCenter
           end
         end
 
+        def devices_for_batch(batch_index)
+          if batch_index > @batch_count
+            simulator_count = [@batch_count, @simulators.count].max
+            raise "Error: impossible to request devices for batch #{batch_index}, there are only #{simulator_count} set(s) of simulators"
+          end
+
+          if @simulators.count > 0
+            @simulators[batch_index - 1]
+          else
+            @scan_options[:devices] || Array(@scan_options[:device])
+          end
+        end
+
         def ensure_conflict_free_scanlogging(scan_options, batch_index)
           scan_options[:buildlog_path] = scan_options[:buildlog_path] + "-#{batch_index}"
         end

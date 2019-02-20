@@ -101,6 +101,12 @@ module TestCenter
             @parallelizer.setup_pipes_for_fork
             pids = []
             batch_pids = {}
+            config = FastlaneCore::Configuration.create(
+              Fastlane::Actions::ScanAction.available_options,
+              @scan_options
+            )
+            Scan.config = config
+
             @test_collector.test_batches.each_with_index do |test_batch, current_batch_index|
               @parallelizer.setup_scan_options_for_testrun(@scan_options, current_batch_index)
               output_directory = testrun_output_directory(@output_directory, test_batch, current_batch_index)
@@ -109,14 +115,16 @@ module TestCenter
               @interstitial.batch = current_batch_index
               @interstitial.output_directory = output_directory
               @interstitial.before_all
-              config = FastlaneCore::Configuration.create(
-                Fastlane::Actions::ScanAction.available_options,
-                @scan_options.merge(
-                  only_testing: test_batch,
-                  output_directory: output_directory
-                )
-              )
-              Scan.config = config
+              Scan.config[:only_testing] = test_batch
+              Scan.config[:output_directory] = output_directory
+              Scan.config[:buildlog_path] = Scan.config[:buildlog_path] + "-#{current_batch_index}"
+              Scan.config[:device] = nil
+              Scan.cache[:destination] = nil
+              Scan.config[:destination] = @parallelizer.devices_for_batch(current_batch_index).map do |device|
+                "platform=iOS Simulator,id=#{device.udid}"
+              end
+              Scan.config[:devices] = @parallelizer.devices(current_batch_index)
+              Scan.config[:derived_data_path] = Dir.mktmpdir
               test_command_generator = Scan::TestCommandGenerator.new
               command = test_command_generator.generate
               puts command.join(' ')
