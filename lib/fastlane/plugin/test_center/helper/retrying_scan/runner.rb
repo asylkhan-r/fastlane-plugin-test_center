@@ -106,7 +106,7 @@ module TestCenter
               @scan_options
             )
             Scan.config = config
-
+            derived_data_path = Scan.config[:derived_data_path]
             @test_collector.test_batches.each_with_index do |test_batch, current_batch_index|
               @parallelizer.setup_scan_options_for_testrun(@scan_options, current_batch_index)
               output_directory = testrun_output_directory(@output_directory, test_batch, current_batch_index)
@@ -125,6 +125,7 @@ module TestCenter
               end
               Scan.config[:devices] = @parallelizer.devices(current_batch_index)
               Scan.config[:derived_data_path] = Dir.mktmpdir
+              FileUtils.cp_r("#{derived_data_path}/.", Scan.config[:derived_data_path])
               test_command_generator = Scan::TestCommandGenerator.new
               command = test_command_generator.generate
               puts command.join(' ')
