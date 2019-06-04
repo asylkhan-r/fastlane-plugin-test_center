@@ -84,7 +84,7 @@ module TestCenter
           testsuite = full_testsuite.testsuite
           is_swift = full_testsuite.testsuite_swift?
 
-          testable_filename = xml_element.parent.parent.attributes['name']
+          testable_filename = xml_element.parent.attributes['name']
           testable = File.basename(testable_filename, '.xctest')
           @identifier = "#{testable}/#{testsuite}/#{name}"
           @skipped_test = Xcodeproj::XCScheme::TestAction::TestableReference::SkippedTest.new
