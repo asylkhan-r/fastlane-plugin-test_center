@@ -75,20 +75,20 @@ module TestCenter
         def initialize(xml_element)
           @root = xml_element
           name = xml_element.attributes['name']
+          classname = xml_element.attributes['classname']
           failure_element = xml_element.elements['failure']
           if failure_element
             @message = failure_element.attributes['message'] || ''
             @location = failure_element.text || ''
           end
           full_testsuite = xml_element.parent.attributes['name']
-          testsuite = full_testsuite.testsuite
           is_swift = full_testsuite.testsuite_swift?
 
           testable_filename = xml_element.parent.attributes['name']
           testable = File.basename(testable_filename, '.xctest')
-          @identifier = "#{testable}/#{testsuite}/#{name}"
+          @identifier = "#{testable}/#{classname}/#{name}"
           @skipped_test = Xcodeproj::XCScheme::TestAction::TestableReference::SkippedTest.new
-          @skipped_test.identifier = "#{testsuite}/#{name}#{'()' if is_swift}"
+          @skipped_test.identifier = "#{classname}/#{name}#{'()' if is_swift}"
           @passed = xml_element.get_elements('failure').size.zero?
         end
 
